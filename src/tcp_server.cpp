@@ -1,96 +1,51 @@
 #include <netinet/ip.h>
 #include <arpa/inet.h>
 
-#include <sys/wait.h>
-#include <signal.h>
-#include <sys/select.h>
-#include <sys/time.h>
-
-#include <netinet/tcp.h> /* for TCP_xxx defines */
+// #include <sys/wait.h>
+// #include <signal.h>
+// #include <sys/select.h>
+// #include <sys/time.h>
 
 #include "../include/Common_Helpers.hpp"
 
 void print_socket_options();
 void print_socket_options(int connfd);
 void invert_socket_options(int connfd);
-
-struct sock_opts
-{
-    const char *opt_str;
-    int opt_level;
-    int opt_name;
-    char *(*opt_val_str)(union val *, int);
-} sock_opts[] = {
-    {"SO_BROADCAST", SOL_SOCKET, SO_BROADCAST, sock_str_flag},
-    {"SO_DEBUG", SOL_SOCKET, SO_DEBUG, sock_str_flag},
-    {"SO_DONTROUTE", SOL_SOCKET, SO_DONTROUTE, sock_str_flag},
-    {"SO_ERROR", SOL_SOCKET, SO_ERROR, sock_str_int},
-    {"SO_KEEPALIVE", SOL_SOCKET, SO_KEEPALIVE, sock_str_flag},
-    {"SO_LINGER", SOL_SOCKET, SO_LINGER, sock_str_linger},
-    {"SO_OOBINLINE", SOL_SOCKET, SO_OOBINLINE, sock_str_flag},
-    {"SO_RCVBUF", SOL_SOCKET, SO_RCVBUF, sock_str_int},
-    {"SO_SNDBUF", SOL_SOCKET, SO_SNDBUF, sock_str_int},
-    {"SO_RCVLOWAT", SOL_SOCKET, SO_RCVLOWAT, sock_str_int},
-    {"SO_SNDLOWAT", SOL_SOCKET, SO_SNDLOWAT, sock_str_int},
-    {"SO_RCVTIMEO", SOL_SOCKET, SO_RCVTIMEO, sock_str_timeval},
-    {"SO_SNDTIMEO", SOL_SOCKET, SO_SNDTIMEO, sock_str_timeval},
-    {"SO_REUSEADDR", SOL_SOCKET, SO_REUSEADDR, sock_str_flag},
-#ifdef SO_REUSEPORT
-    {"SO_REUSEPORT", SOL_SOCKET, SO_REUSEPORT, sock_str_flag},
-#else
-    {"SO_REUSEPORT", 0, 0, NULL},
-#endif
-    {"SO_TYPE", SOL_SOCKET, SO_TYPE, sock_str_int},
-    {"SO_USELOOPBACK", SOL_SOCKET, SO_USELOOPBACK, sock_str_flag},
-    {"IP_TOS", IPPROTO_IP, IP_TOS, sock_str_int},
-    {"IP_TTL", IPPROTO_IP, IP_TTL, sock_str_int},
-
-#ifdef IPV6_DONTFRAG
-    {"IPV6_DONTFRAG", IPPROTO_IPV6, IPV6_DONTFRAG, sock_str_flag},
-#else
-    {"IPV6_DONTFRAG", 0, 0, NULL},
-#endif
-#ifdef IPV6_UNICAST_HOPS
-    {"IPV6_UNICAST_HOPS", IPPROTO_IPV6, IPV6_UNICAST_HOPS, sock_str_int},
-#else
-    {"IPV6_UNICAST_HOPS", 0, 0, NULL},
-#endif
-#ifdef IPV6_V6ONLY
-    {"IPV6_V6ONLY", IPPROTO_IPV6, IPV6_V6ONLY, sock_str_flag},
-#else
-    {"IPV6_V6ONLY", 0, 0, NULL},
-#endif
-    {"TCP_MAXSEG", IPPROTO_TCP, TCP_MAXSEG, sock_str_int},
-    {"TCP_NODELAY", IPPROTO_TCP, TCP_NODELAY, sock_str_flag},
-#ifdef SCTP_AUTOCLOSE
-    {"SCTP_AUTOCLOSE", IPPROTO_SCTP, SCTP_AUTOCLOSE, sock_str_int},
-#else
-    {"SCTP_AUTOCLOSE", 0, 0, NULL},
-#endif
-#ifdef SCTP_MAXBURST
-    {"SCTP_MAXBURST", IPPROTO_SCTP, SCTP_MAXBURST, sock_str_int},
-#else
-    {"SCTP_MAXBURST", 0, 0, NULL},
-#endif
-#ifdef SCTP_MAXSEG
-    {"SCTP_MAXSEG", IPPROTO_SCTP, SCTP_MAXSEG, sock_str_int},
-#else
-    {"SCTP_MAXSEG", 0, 0, NULL},
-#endif
-#ifdef SCTP_NODELAY
-    {"SCTP_NODELAY", IPPROTO_SCTP, SCTP_NODELAY, sock_str_flag},
-#else
-    {"SCTP_NODELAY", 0, 0, NULL},
-#endif
-    {NULL, 0, 0, NULL}};
-
+std::string process_client_msg(int connfd, in_addr client_in_addr, socklen_t clilen, sockaddr_in cliaddr);
+void process_client_payload(std::string client_payload);
 
 int main(int argc, char **argv)
 {
-    std::cout << "Hello! Starting TCP server on port " << PORT << ".....\n" << std::endl;
-    std::cout << "Default option values (initial print): " << std::endl; 
-    print_socket_options(); 
-    std::cout << "\n Listening for connections....\n" << std::endl; 
+    //signal requires lam take an int parameter
+    //this parameter is equal to the signals value
+    auto lam =
+        [](int i)
+    {
+        std::cout << "\nTermination command invoked. Shutting down server. " << std::endl;
+        goodbye();
+        /* "note that c++11 added a quick_exit which has an accompanying at_quick_exit which act the same as above. 
+        *  But with quick_exit no clean up tasks are performed. In contrast, with exit object destructors are called 
+        *  and C streams are closed, with only automatic storage variables not getting cleaned up." 
+        *  https://stackoverflow.com/questions/9402254/how-do-you-run-a-function-on-exit-in-c 
+        */
+        exit(0);
+    };
+
+    //^C
+    signal(SIGINT, lam);
+    //abort()
+    signal(SIGABRT, lam);
+    //sent by "kill" command
+    signal(SIGTERM, lam);
+    //^Z
+    signal(SIGTSTP, lam);
+
+    std::cout << ANSII_GREEN_START << "Hello! Starting TCP server on port " << PORT << ".....\n"
+              << ANSII_END << std::endl;
+    std::cout << ANSII_YELLOW_COUT << "Default server option values:" << ANSII_END << std::endl;
+    print_socket_options();
+    std::cout << "\n Listening for connections....\n"
+              << std::endl;
 
     int listenfd, connfd;
     pid_t childpid;
@@ -114,51 +69,47 @@ int main(int argc, char **argv)
         clilen = sizeof(cliaddr);
         connfd = accept(listenfd, (struct sockaddr *)&cliaddr, &clilen);
 
-        printf("server: got connection from internet address: %d\n", cliaddr.sin_addr.s_addr);
+        std::cout << ANSII_BLUE_COUT << "Server received a connection from internet address: "
+                  << cliaddr.sin_addr.s_addr << ANSII_END << std::endl;
 
         in_addr client_in_addr = ((struct sockaddr_in *)&cliaddr)->sin_addr;
-        char str[INET_ADDRSTRLEN];
-        inet_ntop(AF_INET, &client_in_addr, str, INET_ADDRSTRLEN);
-        printf("IP address is: %s\n", str);
 
-        // struct sock_opts *ptr;
-        // int opt = getsockopt(listenfd, SOL_SOCKET, SO_RCVBUF, &i_val, &len);
-
-        // printf("%d\n", opt);
-        // printf("%d", i_val);
+        // Get IP address of connecting client and display it
+        char ip_addr_str[INET_ADDRSTRLEN];
+        inet_ntop(AF_INET, &client_in_addr, ip_addr_str, INET_ADDRSTRLEN);
+        std::cout << "IP address is: " << ip_addr_str << std::endl
+                  << std::endl;
 
         if ((childpid = fork()) == 0)
         {                    /* child process */
             close(listenfd); /* close listening socket */
 
-            std::cout << "Default client socket options received are: " << std::endl; 
+            std::string client_payload = process_client_msg(connfd, client_in_addr, clilen, cliaddr);
+
+            process_client_payload(client_payload);
+
+            // Re-print the server socket options to show their new values
+            std::cout << "\n     *****" << std::endl
+                      << std::endl;
             print_socket_options(connfd);
-            std::cout << std::endl; 
 
-            send(connfd, "Server reply is: Hello! I will invert the socket options you sent me!\n", 69, 0);
+            send(connfd, "Hello - I inverted/modified the socket options you sent me and printed on my end!\n", 72, 0);
 
-            invert_socket_options(connfd);
-
-            // Re-print the options to show their new values
-            std::cout << "\n     *****" << std::endl; 
-            std::cout << std::endl; 
-            print_socket_options(connfd);
-            
             exit(0);
         }
         close(connfd); /* parent closes connected socket */
     }
-    
-    return EXIT_SUCCESS; 
+
+    return EXIT_SUCCESS;
 }
 
 /**
  * print_socket_options - a helper function to print out the initial values of all socket options
  * prior to accepting a client connection. This is essentially a clone of checkopts.c from the text. 
- */  
-void print_socket_options() 
+ */
+void print_socket_options()
 {
-     int fd;
+    int fd;
     socklen_t len;
     struct sock_opts *ptr;
 
@@ -210,10 +161,10 @@ void print_socket_options()
  * A helper function to print the socket options given a socket connection with a client. 
  * @param int sockfd
  * @return none
- */ 
-void print_socket_options(int sockfd) 
+ */
+void print_socket_options(int sockfd)
 {
-     
+
     socklen_t len;
     struct sock_opts *ptr;
 
@@ -239,10 +190,11 @@ void print_socket_options(int sockfd)
     }
 }
 
-
 /**
  * invert_socket_options is a helper function to invert the 
- * socket options provided by the client. 
+ * socket options of the server (NOT the ones sent by the client). 
+ * This function is here as a proof of concept and is not used in the final program, 
+ * as we need to invert the values sent to us by the client instead.  
  * @param int connfd - the socket from the accepted client connection
  * @return none
  */
@@ -266,14 +218,15 @@ void invert_socket_options(int connfd)
             }
             else
             {
-                //string test = (*ptr->opt_val_str)(&val, len); 
+                //string test = (*ptr->opt_val_str)(&val, len);
                 //printf("VALUE IS: %d  ||", val.i_val);
                 //printf("VALUE IS: %d \n", val.l_val);
 
-                int newVal; 
+                int newVal;
                 if (newVal > 1)
-                    newVal =  32248;
-                else if (val.i_val == 0 ? newVal = 1 : newVal == 0); 
+                    newVal = 32248;
+                else if (val.i_val == 0 ? newVal = 1 : newVal == 0)
+                    ;
 
                 setsockopt(connfd, ptr->opt_level, ptr->opt_name, &newVal, sizeof(newVal));
                 //printf("default = %s\n", (*ptr->opt_val_str)(&val, len));
@@ -281,4 +234,60 @@ void invert_socket_options(int connfd)
             //close(sockfd);
         }
     }
+}
+
+std::string process_client_msg(int connfd, in_addr client_in_addr, socklen_t clilen, sockaddr_in cliaddr)
+{
+    char host[NI_MAXHOST], service[NI_MAXSERV];
+    char buf[BUF_SIZE];
+
+    // Receive the client message into buffer
+    int nread = recvfrom(connfd, buf, BUF_SIZE, 0, (struct sockaddr *)&client_in_addr, &clilen);
+
+    if (nread == -1)
+    {
+        std::cout << "There were issues with the request but will continue....." << std::endl;
+        return ""; /* Ignore request as it failed, will continue loop and skip logic below */
+    }
+
+    // Get the hostname
+    int getname_err = getnameinfo((struct sockaddr *)&cliaddr,
+                                  sizeof(cliaddr), host, NI_MAXHOST,
+                                  service, NI_MAXSERV, NI_NUMERICSERV);
+    if (getname_err == 0)
+    {
+        std::cout << "Received " << nread << " bytes from " << host << ":" << service << std::endl;
+    }
+    else
+    {
+        //fprintf(stderr, "getnameinfo: %s\n", gai_strerror(getname_err));
+        std::cerr << stderr << " getnameinfo: " << gai_strerror(getname_err) << std::endl;
+    }
+
+    // Display the message
+    std::cout << ANSII_GREEN_START << "Msg received from client is: " << ANSII_END;
+    std::cout << buf << std::endl;
+
+    return buf;
+}
+
+/**
+ * process_client_payload - a helper function to do the following: 
+ *      1. Parse the client payload
+ *      2. Set server socket options to the opposite (or in non-binary cases, just different) values
+ */
+void process_client_payload(std::string client_payload)
+{
+    std::cout << ANSII_BLUE_COUT << "PROCESSING CLIENT PAYLOAD....." << ANSII_END << std::endl;
+    std::string delimiter = ";";
+
+    size_t pos = 0;
+    std::string token;
+    while ((pos = client_payload.find(delimiter)) != std::string::npos)
+    {
+        token = client_payload.substr(0, pos);
+        std::cout << token << std::endl;
+        client_payload.erase(0, pos + delimiter.length());
+    }
+    std::cout << client_payload << std::endl;
 }
