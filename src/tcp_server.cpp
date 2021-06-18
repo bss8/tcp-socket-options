@@ -323,7 +323,7 @@ void process_client_payload(std::string client_payload, int connfd)
         num_tokens++;
     }
 
-    std::cout << ANSII_BLUE_START << "Processed " << num_tokens << " received from the client." << ANSII_END << std::endl;
+    std::cout << ANSII_BLUE_START << "Processed " << num_tokens << " socket options received from the client." << ANSII_END << std::endl;
 }
 
 /**
