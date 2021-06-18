@@ -62,6 +62,15 @@ A small aside but worth mentioning. Why use c++11 compiler? C++11 now supports:
 - rvalue references
 "The C++11 Standard Library was also revamped with new algorithms, new container classes, atomic operations, type traits, regular expressions, new smart pointers, async() facility, and of course a multithreading library"
 
+![Build program and run server](resources/img/build_and_run_server.jpg)
+
+![Run the client](resources/img/run_client.jpg)
+
+![Server processed payload](resources/img/server_processed_payload.jpg)
+
+![New server socket options](resources/img/new_server_socket_opts.jpg)
+
+![Shut down the server](resources/img/shutting_down_server.jpg)
 
 ## References
 
