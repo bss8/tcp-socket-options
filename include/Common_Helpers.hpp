@@ -1,3 +1,13 @@
+/**
+ * @author Borislav Sabotinonv
+ * CS5341 Assignment 1 
+ * TCP Client-Server program to send data, modify socket option values, and print
+ * 
+ * This header contains common libraries and helper functions for the client and server cpp files. 
+ * Additionally, it containts ANSII color definitons to improve readability and a funtion 
+ * to print a goodbye message to the user. 
+ */
+
 #ifndef COMMON_HELPERS_H
 #define COMMON_HELPERS_H
 
@@ -14,6 +24,8 @@
 
 #include <csignal>
 #include <cstdlib>
+
+#include <algorithm>
 
 // for streams - cout, cerr, etc.
 #include <iostream>

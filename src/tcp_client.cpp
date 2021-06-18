@@ -1,3 +1,14 @@
+/**
+ * @author Borislav Sabotinonv
+ * CS5341 Assignment 1 
+ * TCP Client-Server program to send data, modify socket option values, and print
+ * 
+ * This cpp file defines a TCP client, which sends a string payload to a server. 
+ * The client takes in two command line arguments. The first is the hostname, the 
+ * second is the port number. The payload contains a string representation of socket options 
+ * and their values. The server will invert these values, modify its socket option values using them, and print. 
+ */
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -29,7 +40,7 @@ int main(int argc, char *argv[])
 
     if (sockfd < 0)
     {
-        perror("ERROR opening socket");
+        std::cerr << ANSII_RED_START << "ERROR: opening socket!" << ANSII_END << std::endl;
         return EXIT_FAILURE;
     }
 
@@ -37,7 +48,7 @@ int main(int argc, char *argv[])
 
     if (server == NULL)
     {
-        fprintf(stderr, "ERROR, no such host\n");
+        fprintf(stderr, "ERROR: no such host!\n");
         return EXIT_FAILURE;
     }
 
@@ -48,7 +59,7 @@ int main(int argc, char *argv[])
 
     if (connect(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0)
     {
-        perror("ERROR connecting");
+        std::cerr << ANSII_RED_START << "ERROR connecting" << ANSII_END << std::endl;
         exit(EXIT_FAILURE);
     }
 
@@ -62,7 +73,9 @@ int main(int argc, char *argv[])
     struct sock_opts *ptr;
 
     std::cout << ANSII_YELLOW_COUT << "Sending socket options to server in format:"
-              << ANSII_END << " " << ANSII_BLUE_START << "NAME,VALUE;" << ANSII_END << std::endl;
+              << ANSII_END << " " << ANSII_BLUE_START << "opt_str,opt_name,opt_val;" << ANSII_END << std::endl;
+    std::cout << "  displayed below as opt_str(opt_name),opt_val ";
+    std::cout << ", where opt_name is an integer value." << std::endl;
 
     std::string so_name_value = "";
     int opt_count = 0;
@@ -85,11 +98,14 @@ int main(int argc, char *argv[])
             }
             else
             {
-                std::string so_name = ptr->opt_str;
+                // TODO print option string but send only the opt_name, which is actually an integer value
+                std::string so_str = ptr->opt_str;
+                std::string so_name = std::to_string(ptr->opt_name);
                 std::string so_value = (*ptr->opt_val_str)(&val, len);
-                so_name_value += so_name + "," + so_value + ";";
+                so_name_value += so_str + "," + so_name + "," + so_value + ";";
 
-                std::cout << so_name + "," + so_value << std::endl;
+                std::cout << so_str << "(" << so_name << ")"
+                          << "," << so_value << std::endl;
                 opt_count++;
             }
         }
@@ -98,8 +114,11 @@ int main(int argc, char *argv[])
     strcpy(buffer, so_name_value.c_str());
     n = write(sockfd, buffer, strlen(buffer));
 
-    std::cout << ANSII_BLUE_COUT << "Sent " << opt_count << " options to the server for processing." << ANSII_END << std::endl; 
-    std::cout << "Please verify server reply below AND output on the server itself!" << std::endl << std::endl;
+    std::cout << std::endl
+              << ANSII_BLUE_COUT << "Sent " << opt_count
+              << " options to the server for processing." << ANSII_END << std::endl;
+    std::cout << "Please verify server reply below AND output on the server itself!" << std::endl
+              << std::endl;
 
     // END MAIN SEND LOOP
 
@@ -112,7 +131,7 @@ int main(int argc, char *argv[])
     }
 
     bzero(buffer, BUF_SIZE);
-    n = read(sockfd, buffer, BUF_SIZE - 1);
+    n = read(sockfd, buffer, BUF_SIZE);
 
     if (n < 0)
     {
@@ -124,6 +143,6 @@ int main(int argc, char *argv[])
     std::cout << buffer << std::endl;
 
     close(sockfd);
-    goodbye(); 
+    goodbye();
     return EXIT_SUCCESS;
 }
