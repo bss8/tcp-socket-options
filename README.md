@@ -11,7 +11,8 @@ You may use WinSCP, FileZilla or equivalent to transer the ZIP to a TXST Linux h
 Drop the ZIP in a directory you own (e.g., /home/Students/bss64)
 
 Open permissions: `chmod 755 *.zip`
-Unzip: `unzip <zip-file-name>.zip Go into directory: cd tcp-socket-options-main`
+Unzip: `unzip <zip-file-name>.zip`
+Go into directory: `cd tcp-socket-options-main`
 
 The g++ compiler with support for C++11, Make, Zip, and standard Linux libraries are required. 
 
